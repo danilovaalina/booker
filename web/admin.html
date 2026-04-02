@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Booker Admin - Панель управления</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --bg: #f3f4f6;
+            --text: #1f2937;
+            --white: #ffffff;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        h1 { font-size: 2rem; margin-bottom: 2rem; color: #111827; }
+        h2 { font-size: 1.25rem; margin-bottom: 1.5rem; }
+
+        /* Карточки */
+        .card {
+            background: var(--white);
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        /* Форма */
+        .form-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr auto;
+            gap: 12px;
+            align-items: end;
+        }
+
+        @media (max-width: 640px) {
+            .form-grid { grid-template-columns: 1fr; }
+        }
+
+        .input-group { display: flex; flex-direction: column; gap: 6px; }
+        label { font-size: 0.875rem; font-weight: 500; color: #6b7280; }
+
+        input {
+            padding: 10px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
+
+        button {
+            background-color: var(--primary);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover { background-color: var(--primary-hover); }
+
+        /* Таблица/Список */
+        .event-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 0;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        .event-item:last-child { border-bottom: none; }
+
+        .event-info .title { font-weight: 700; font-size: 1.1rem; margin-bottom: 4px; }
+        .event-info .id { font-family: monospace; font-size: 0.75rem; color: #9ca3af; }
+
+        .badge {
+            background-color: #ecfdf5;
+            color: #065f46;
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            border: 1px solid #d1fae5;
+        }
+
+        .empty-state { text-align: center; color: #9ca3af; padding: 40px 0; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Панель администратора</h1>
+
+    <!-- Форма создания -->
+    <div class="card">
+        <h2>Создать новое мероприятие</h2>
+        <form id="createEventForm" class="form-grid">
+            <div class="input-group">
+                <label>Название</label>
+                <input type="text" id="title" placeholder="Например: Go Meetup" required>
+            </div>
+            <div class="input-group">
+                <label>Кол-во мест</label>
+                <input type="number" id="slots" value="100" min="1" required>
+            </div>
+            <div class="input-group">
+                <label>Таймаут (мин)</label>
+                <input type="number" id="timeout" value="15" min="1" required>
+            </div>
+            <button type="submit">Создать</button>
+        </form>
+    </div>
+
+    <!-- Список -->
+    <div class="card">
+        <h2>Текущие мероприятия</h2>
+        <div id="eventsList">
+            <div class="empty-state">Загрузка данных...</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const form = document.getElementById('createEventForm');
+
+    async function loadEvents() {
+        try {
+            const res = await fetch('/events');
+            const events = await res.json();
+            const container = document.getElementById('eventsList');
+
+            if (events.length === 0) {
+                container.innerHTML = '<div class="empty-state">Мероприятий пока нет</div>';
+                return;
+            }
+
+            container.innerHTML = events.map(e => `
+                    <div class="event-item">
+                        <div class="event-info">
+                            <div class="title">${e.title}</div>
+                            <div class="id">ID: ${e.id}</div>
+                        </div>
+                        <div>
+                            <span class="badge">
+                                Занято: ${e.booked_slots} / ${e.total_slots}
+                            </span>
+                        </div>
+                    </div>
+                `).join('');
+        } catch (err) {
+            console.error('Ошибка загрузки:', err);
+        }
+    }
+
+    form.onsubmit = async (e) => {
+        e.preventDefault();
+        const data = {
+            title: document.getElementById('title').value,
+            total_slots: parseInt(document.getElementById('slots').value),
+            timeout_minutes: parseInt(document.getElementById('timeout').value)
+        };
+
+        const res = await fetch('/events', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+
+        if (res.ok) {
+            form.reset();
+            loadEvents();
+        } else {
+            alert('Не удалось создать мероприятие');
+        }
+    };
+
+    // Начальная загрузка и автообновление каждые 5 сек
+    loadEvents();
+    setInterval(loadEvents, 5000);
+</script>
+</body>
+</html>
