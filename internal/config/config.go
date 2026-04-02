@@ -41,16 +41,11 @@ func Load() (Config, error) {
 		}
 	}
 
-	v.SetConfigFile(".env")
-	v.SetConfigType("env")
-	err := v.MergeInConfig()
-	if err != nil {
-		return Config{}, err
-	}
-
 	v.AutomaticEnv()
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
+	_ = v.BindEnv("db_url")
+	_ = v.BindEnv("bot_token")
 	_ = v.BindEnv("email.host")
 	_ = v.BindEnv("email.port")
 	_ = v.BindEnv("email.user")
@@ -58,7 +53,7 @@ func Load() (Config, error) {
 	_ = v.BindEnv("email.from")
 
 	var cfg Config
-	if err = v.Unmarshal(&cfg); err != nil {
+	if err := v.Unmarshal(&cfg); err != nil {
 		return Config{}, errors.WithDetail(err, "unable to decode into struct")
 	}
 
